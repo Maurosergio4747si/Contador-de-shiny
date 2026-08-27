@@ -1,0 +1,6 @@
+{
+  "name": "Shiny Pokemon Tracker",
+  "description": "Controle profissional de caçadas, rotas, métodos e probabilidades de Pokémon Shiny com suporte a fases.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
