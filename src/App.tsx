@@ -18,11 +18,13 @@ import NewHuntModal from './components/NewHuntModal';
 import ActiveTracker from './components/ActiveTracker';
 import StatsOverview from './components/StatsOverview';
 import ConfirmModal from './components/ConfirmModal';
+import ShinyPokedex from './components/ShinyPokedex';
 
 export default function App() {
   const [hunts, setHunts] = useState<Hunt[]>([]);
   const [activeHuntId, setActiveHuntId] = useState<string | null>(null);
   const [isCreatingHunt, setIsCreatingHunt] = useState(false);
+  const [activeTab, setActiveTab] = useState<'hunts' | 'pokedex'>('hunts');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -266,6 +268,47 @@ export default function App() {
           )}
         </header>
 
+        {/* Tab Navigation (Only visible when not actively tracking a hunt) */}
+        {!activeHuntId && (
+          <div className="flex border-b border-slate-200 gap-2 overflow-x-auto pb-px">
+            <button
+              onClick={() => {
+                setActiveTab('hunts');
+                // Smooth scroll to top of viewport
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`pb-3 text-sm font-bold border-b-2 px-4 transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                activeTab === 'hunts'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Gamepad2 className="w-4.5 h-4.5" />
+              <span>Painel de Caça</span>
+              <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-mono font-bold">
+                {hunts.filter(h => h.status === 'hunting').length}
+              </span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('pokedex');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className={`pb-3 text-sm font-bold border-b-2 px-4 transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                activeTab === 'pokedex'
+                  ? 'border-amber-500 text-amber-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Trophy className="w-4.5 h-4.5 text-amber-500" />
+              <span>Pokédex Shiny</span>
+              <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-mono font-bold">
+                {hunts.filter(h => h.status === 'completed').length + hunts.reduce((sum, h) => sum + h.phases.length, 0)}
+              </span>
+            </button>
+          </div>
+        )}
+
         {/* ACTIVE HUNTING SCREEN ROUTER */}
         {activeHuntId && activeHunt ? (
           <div className="space-y-4">
@@ -276,6 +319,8 @@ export default function App() {
               onFinishHunt={handleFinishHunt}
             />
           </div>
+        ) : activeTab === 'pokedex' ? (
+          <ShinyPokedex hunts={hunts} onUpdateHunts={(updated) => { setHunts(updated); saveHunts(updated); }} />
         ) : (
           /* DASHBOARD VIEW */
           <div className="space-y-8 animate-in fade-in duration-200">
@@ -288,194 +333,125 @@ export default function App() {
             />
 
             {/* LISTS SECTIONS */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              
-              {/* Left Column: Active/Paused Hunts list */}
-              <div className="lg:col-span-8 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-400 font-mono uppercase tracking-wider flex items-center gap-2">
-                    <Compass className="w-4 h-4 text-indigo-500" />
-                    Caçadas em Andamento
-                  </h3>
-                  <span className="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-2.5 py-0.5 rounded-full">
-                    {hunts.filter(h => h.status === 'hunting').length} Ativas
-                  </span>
-                </div>
-
-                {hunts.filter(h => h.status === 'hunting').length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {hunts.filter(h => h.status === 'hunting').map((hunt) => (
-                      <div 
-                        key={hunt.id}
-                        onClick={() => setActiveHuntId(hunt.id)}
-                        className="bg-white border border-slate-200 rounded-xl p-5 hover:border-indigo-500 hover:shadow-md cursor-pointer transition-all flex flex-col justify-between group relative overflow-hidden shadow-2xs"
-                      >
-                        {/* Shimmer star background on hover */}
-                        <div className="absolute top-2 right-2 flex gap-1 items-center z-10">
-                          <span className="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
-                            #{String(hunt.targetPokemon.id).padStart(4, '0')}
-                          </span>
-                        </div>
-
-                        <div className="space-y-4">
-                          {/* Pokémon info layout */}
-                          <div className="flex items-center gap-4">
-                            <div className="relative bg-slate-50 p-1.5 rounded-lg border border-slate-150">
-                              <img 
-                                src={hunt.targetPokemon.spriteShiny} 
-                                alt={hunt.targetPokemon.name}
-                                className="w-12 h-12 object-contain group-hover:scale-110 transition-transform"
-                                referrerPolicy="no-referrer"
-                              />
-                              <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400 absolute -top-1 -right-1" />
-                            </div>
-                            <div className="truncate">
-                              <h4 className="text-sm font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">
-                                {hunt.targetPokemon.name}
-                              </h4>
-                              <p className="text-xs text-slate-400 font-medium truncate flex items-center gap-1">
-                                <Gamepad2 className="w-3.5 h-3.5" />
-                                {hunt.game}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Stats Grid */}
-                          <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-100 text-center">
-                            <div>
-                              <span className="text-[9px] font-bold text-slate-400 uppercase font-mono block">Encontros</span>
-                              <strong className="text-sm font-extrabold text-slate-700 font-mono block">{hunt.currentPhaseEncounters}</strong>
-                            </div>
-                            <div>
-                              <span className="text-[9px] font-bold text-slate-400 uppercase font-mono block">Tempo</span>
-                              <strong className="text-sm font-extrabold text-slate-700 font-mono block">{formatHours(hunt.totalTimeSeconds)}</strong>
-                            </div>
-                            <div>
-                              <span className="text-[9px] font-bold text-slate-400 uppercase font-mono block">Odds (1 em)</span>
-                              <strong className="text-sm font-extrabold text-slate-700 font-mono block">{hunt.customOdds}</strong>
-                            </div>
-                          </div>
-                          
-                          {/* Location & Phase */}
-                          <div className="text-xs font-semibold text-slate-500 space-y-1.5 font-sans">
-                            <div className="flex items-center gap-1.5">
-                              <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                              <span className="truncate">{hunt.route}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-[11px]">
-                              <span className="text-slate-400">Método:</span>
-                              <span className="text-slate-700 font-semibold">{hunt.methodName}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-[11px]">
-                              <span className="text-slate-400">Fase Atual:</span>
-                              <span className="bg-amber-100/60 text-amber-700 px-1.5 py-0.5 rounded font-mono text-[10px]">
-                                Fase {hunt.phases.length + 1}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between gap-2 pt-4 mt-4 border-t border-slate-100">
-                          <button
-                            onClick={(e) => handleDeleteHunt(hunt.id, e)}
-                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                            title="Apagar Caçada"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                          
-                          <span className="text-xs font-bold text-indigo-600 group-hover:text-indigo-500 flex items-center gap-0.5 transition-colors">
-                            Continuar Caçada →
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12 px-6 border-2 border-dashed border-slate-200 bg-white rounded-2xl text-slate-500 space-y-3">
-                    <Star className="w-8 h-8 text-slate-300 mx-auto animate-pulse" />
-                    <p className="text-xs font-medium">Nenhuma caçada em andamento no momento.</p>
-                    <button
-                      onClick={() => setIsCreatingHunt(true)}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-lg transition-all cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Começar Primeira Caçada
-                    </button>
-                  </div>
-                )}
+            <div className="space-y-4 max-w-5xl mx-auto">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-400 font-mono uppercase tracking-wider flex items-center gap-2">
+                  <Compass className="w-4 h-4 text-indigo-500" />
+                  Caçadas em Andamento
+                </h3>
+                <span className="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-2.5 py-0.5 rounded-full">
+                  {hunts.filter(h => h.status === 'hunting').length} Ativas
+                </span>
               </div>
 
-              {/* Right Column: Hall of Fame / Completed list */}
-              <div className="lg:col-span-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-400 font-mono uppercase tracking-wider flex items-center gap-2">
-                    <Trophy className="w-4 h-4 text-indigo-500" />
-                    Histórico de Concluídas
-                  </h3>
-                  <span className="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-2.5 py-0.5 rounded-full">
-                    {hunts.filter(h => h.status === 'completed').length} Concluídas
-                  </span>
-                </div>
+              {hunts.filter(h => h.status === 'hunting').length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {hunts.filter(h => h.status === 'hunting').map((hunt) => (
+                    <div 
+                      key={hunt.id}
+                      onClick={() => setActiveHuntId(hunt.id)}
+                      className="bg-white border border-slate-200 rounded-xl p-5 hover:border-indigo-500 hover:shadow-md cursor-pointer transition-all flex flex-col justify-between group relative overflow-hidden shadow-2xs"
+                    >
+                      {/* Shimmer star background on hover */}
+                      <div className="absolute top-2 right-2 flex gap-1 items-center z-10">
+                        <span className="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+                          #{String(hunt.targetPokemon.id).padStart(4, '0')}
+                        </span>
+                      </div>
 
-                {hunts.filter(h => h.status === 'completed').length > 0 ? (
-                  <div className="space-y-3">
-                    {hunts.filter(h => h.status === 'completed').map((hunt) => (
-                      <div 
-                        key={hunt.id}
-                        className="bg-white border border-slate-200 p-4 rounded-xl space-y-3 hover:border-slate-300 transition-colors relative shadow-3xs"
-                      >
-                        <button
-                          onClick={(e) => handleDeleteHunt(hunt.id, e)}
-                          className="absolute top-2 right-2 text-slate-300 hover:text-red-500 transition-colors p-1 rounded"
-                          title="Apagar Registro Histórico"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-
-                        <div className="flex items-center gap-3">
-                          <img 
-                            src={hunt.targetPokemon.spriteShiny} 
-                            alt={hunt.targetPokemon.name}
-                            className="w-10 h-10 object-contain drop-shadow-xs"
-                            referrerPolicy="no-referrer"
-                          />
+                      <div className="space-y-4">
+                        {/* Pokémon info layout */}
+                        <div className="flex items-center gap-4">
+                          <div className="relative bg-slate-50 p-1.5 rounded-lg border border-slate-150">
+                            <img 
+                              src={hunt.targetPokemon.spriteShiny} 
+                              alt={hunt.targetPokemon.name}
+                              className="w-12 h-12 object-contain group-hover:scale-110 transition-transform"
+                              referrerPolicy="no-referrer"
+                            />
+                            <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400 absolute -top-1 -right-1" />
+                          </div>
                           <div className="truncate">
-                            <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                            <h4 className="text-sm font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">
                               {hunt.targetPokemon.name}
-                              <Trophy className="w-3 h-3 text-amber-500 fill-amber-300" />
                             </h4>
-                            <p className="text-[11px] text-slate-400 truncate font-medium">
-                              {hunt.game} • {hunt.route}
+                            <p className="text-xs text-slate-400 font-medium truncate flex items-center gap-1">
+                              <Gamepad2 className="w-3.5 h-3.5" />
+                              {hunt.game}
                             </p>
                           </div>
                         </div>
 
-                        <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-150 grid grid-cols-2 gap-2 text-center text-xs font-mono">
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-100 text-center">
                           <div>
-                            <span className="text-[9px] text-slate-400 uppercase font-mono block">Encontros</span>
-                            <strong className="text-slate-800 font-bold">{hunt.totalEncounters}</strong>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase font-mono block">Encontros</span>
+                            <strong className="text-sm font-extrabold text-slate-700 font-mono block">{hunt.currentPhaseEncounters}</strong>
                           </div>
                           <div>
-                            <span className="text-[9px] text-slate-400 uppercase font-mono block">Fases Realizadas</span>
-                            <strong className="text-slate-800 font-bold">{hunt.phases.length}</strong>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase font-mono block">Tempo</span>
+                            <strong className="text-sm font-extrabold text-slate-700 font-mono block">{formatHours(hunt.totalTimeSeconds)}</strong>
+                          </div>
+                          <div>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase font-mono block">Odds (1 em)</span>
+                            <strong className="text-sm font-extrabold text-slate-700 font-mono block">{hunt.customOdds}</strong>
                           </div>
                         </div>
-
-                        <div className="text-[10px] text-slate-400 font-mono flex justify-between items-center pt-1 border-t border-slate-100">
-                          <span>Início: {new Date(hunt.startDate).toLocaleDateString('pt-BR')}</span>
-                          <span>Fim: {hunt.endDate ? new Date(hunt.endDate).toLocaleDateString('pt-BR') : 'N/A'}</span>
+                        
+                        {/* Location & Phase */}
+                        <div className="text-xs font-semibold text-slate-500 space-y-1.5 font-sans">
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="truncate">{hunt.route}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-slate-400">Método:</span>
+                            <span className="text-slate-700 font-semibold">{hunt.methodName}</span>
+                          </div>
+                          {hunt.saveName && (
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="text-slate-400">Save:</span>
+                              <span className="text-indigo-600 font-bold font-mono">{hunt.saveName}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-slate-400">Fase Atual:</span>
+                            <span className="bg-amber-100/60 text-amber-700 px-1.5 py-0.5 rounded font-mono text-[10px]">
+                              Fase {hunt.phases.length + 1}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-10 px-6 border border-dashed border-slate-200 bg-white rounded-xl text-slate-400 text-xs">
-                    Nenhum registro de caçada bem-sucedida arquivado ainda.
-                  </div>
-                )}
-              </div>
 
+                      <div className="flex items-center justify-between gap-2 pt-4 mt-4 border-t border-slate-100">
+                        <button
+                          onClick={(e) => handleDeleteHunt(hunt.id, e)}
+                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                          title="Apagar Caçada"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        
+                        <span className="text-xs font-bold text-indigo-600 group-hover:text-indigo-500 flex items-center gap-0.5 transition-colors">
+                          Continuar Caçada →
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 px-6 border-2 border-dashed border-slate-200 bg-white rounded-2xl text-slate-500 space-y-3 max-w-md mx-auto">
+                  <Star className="w-8 h-8 text-slate-300 mx-auto animate-pulse" />
+                  <p className="text-xs font-medium">Nenhuma caçada em andamento no momento.</p>
+                  <button
+                    onClick={() => setIsCreatingHunt(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-lg transition-all cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Começar Primeira Caçada
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

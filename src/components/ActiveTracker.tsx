@@ -148,12 +148,14 @@ export default function ActiveTracker({
 
       return () => {
         clearInterval(interval);
-        // Save exact values when pausing, stopping or unmounting
-        onUpdateHunt({
-          ...huntRef.current,
-          totalTimeSeconds: totalSecondsRef.current,
-          currentPhaseTimeSeconds: phaseSecondsRef.current
-        });
+        // Save exact values when pausing, stopping or unmounting safely in the next tick
+        setTimeout(() => {
+          onUpdateHunt({
+            ...huntRef.current,
+            totalTimeSeconds: totalSecondsRef.current,
+            currentPhaseTimeSeconds: phaseSecondsRef.current
+          });
+        }, 0);
       };
     }
   }, [isTimerRunning, hunt.id]);

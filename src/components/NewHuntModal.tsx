@@ -46,6 +46,7 @@ export default function NewHuntModal({ onClose, onCreateHunt }: NewHuntModalProp
   const [targetPokemon, setTargetPokemon] = useState<PokemonMini | null>(null);
   const [game, setGame] = useState(GAMES_LIST[0]);
   const [route, setRoute] = useState('');
+  const [saveName, setSaveName] = useState('');
   const [methodId, setMethodId] = useState(HUNTING_METHODS[0].id);
   const [hasShinyCharm, setHasShinyCharm] = useState(false);
   const [modifierValue, setModifierValue] = useState<number | undefined>(undefined);
@@ -220,6 +221,7 @@ export default function NewHuntModal({ onClose, onCreateHunt }: NewHuntModalProp
       phases: [],
       hasShinyCharm,
       notes: notes.trim(),
+      saveName: saveName.trim() || 'Principal',
       methodModifierValue: modifierValue
     };
 
@@ -294,7 +296,7 @@ export default function NewHuntModal({ onClose, onCreateHunt }: NewHuntModalProp
               <h4 className="text-sm font-bold text-slate-800">Localização e Jogo</h4>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
                   <Gamepad2 className="w-3.5 h-3.5" /> Jogo Utilizado
@@ -312,6 +314,19 @@ export default function NewHuntModal({ onClose, onCreateHunt }: NewHuntModalProp
 
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                  <BookOpen className="w-3.5 h-3.5 text-indigo-500" /> Nome do Save (Arquivo)
+                </label>
+                <input
+                  type="text"
+                  value={saveName}
+                  onChange={(e) => setSaveName(e.target.value)}
+                  placeholder="Ex: Save 1, Principal..."
+                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5" /> Rota / Local
                 </label>
                 <input
@@ -325,7 +340,7 @@ export default function NewHuntModal({ onClose, onCreateHunt }: NewHuntModalProp
               </div>
 
               {targetPokemon && (
-                <div className="space-y-1.5 col-span-1 md:col-span-2">
+                <div className="space-y-1.5 col-span-1 md:col-span-3">
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
                     <span className="flex items-center gap-1">📍 Rotas recomendadas de {targetPokemon.name} para o jogo ({game})</span>
                     {loadingRoutes && <span className="text-indigo-600 animate-pulse text-[10px]">Buscando rotas...</span>}

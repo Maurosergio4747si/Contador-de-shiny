@@ -15,6 +15,8 @@ export interface Phase {
   encounters: number;
   timeSeconds: number;
   date: string; // ISO string
+  evolvedTo?: PokemonMini;
+  notes?: string;
 }
 
 export interface Hunt {
@@ -37,7 +39,9 @@ export interface Hunt {
   phases: Phase[];
   hasShinyCharm: boolean;
   notes?: string;
+  saveName?: string;
   methodModifierValue?: number; // e.g. DexNav level, chain count, sandwich level
+  evolvedTo?: PokemonMini;
 }
 
 export interface HuntingMethod {

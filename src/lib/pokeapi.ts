@@ -106,6 +106,147 @@ export async function fetchPokemonList(): Promise<PokeApiListItem[]> {
   }
 }
 
+export interface EvolutionOption {
+  id: number;
+  name: string;
+  displayName: string;
+  triggerDescription?: string;
+  spriteShiny: string;
+}
+
+/**
+ * Helper to extract Pokémon species ID from PokéAPI URL
+ */
+function extractIdFromUrl(url: string): number {
+  const matches = url.match(/\/(\d+)\/?$/);
+  return matches ? parseInt(matches[1], 10) : 0;
+}
+
+/**
+ * Formats evolution trigger details into a friendly Portuguese description
+ */
+function formatEvolutionDetails(details: any): string | undefined {
+  if (!details) return undefined;
+  const parts: string[] = [];
+
+  if (details.min_level) {
+    parts.push(`Nv. ${details.min_level}`);
+  }
+  if (details.item) {
+    parts.push(`Item: ${capitalize(details.item.name)}`);
+  }
+  if (details.held_item) {
+    parts.push(`Segurando: ${capitalize(details.held_item.name)}`);
+  }
+  if (details.trigger?.name === 'trade') {
+    parts.push('Troca');
+  } else if (details.trigger?.name === 'use-item' && !details.item) {
+    parts.push('Usar Item');
+  }
+  if (details.min_happiness) {
+    parts.push(`Felicidade (${details.min_happiness}+)`);
+  }
+  if (details.time_of_day) {
+    parts.push(details.time_of_day === 'day' ? 'Dia' : 'Noite');
+  }
+  if (details.known_move) {
+    parts.push(`Golpe: ${capitalize(details.known_move.name)}`);
+  }
+  if (details.location) {
+    parts.push(`Local: ${capitalize(details.location.name)}`);
+  }
+
+  return parts.length > 0 ? parts.join(' • ') : undefined;
+}
+
+/**
+ * Fetches the legitimate next evolution(s) for a given Pokémon ID or species name
+ */
+export async function fetchPokemonEvolutions(pokemonId: number): Promise<EvolutionOption[]> {
+  const cacheKey = `evolution_options_${pokemonId}`;
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch {
+      // ignore parse error, refetch
+    }
+  }
+
+  try {
+    // 1. Fetch species details to obtain evolution_chain URL
+    const speciesRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${pokemonId}`);
+    if (!speciesRes.ok) return [];
+    const speciesData = await speciesRes.json();
+
+    const chainUrl = speciesData.evolution_chain?.url;
+    if (!chainUrl) return [];
+
+    // 2. Fetch evolution chain
+    const chainRes = await fetch(chainUrl);
+    if (!chainRes.ok) return [];
+    const chainData = await chainRes.json();
+
+    // 3. Find the node matching current pokemon ID in the tree
+    const targetSpeciesName = speciesData.name.toLowerCase();
+
+    function findNode(node: any): any | null {
+      if (!node) return null;
+      const nodeSpeciesName = node.species?.name?.toLowerCase();
+      const nodeSpeciesId = extractIdFromUrl(node.species?.url || '');
+      
+      if (nodeSpeciesName === targetSpeciesName || nodeSpeciesId === pokemonId) {
+        return node;
+      }
+
+      if (node.evolves_to && Array.isArray(node.evolves_to)) {
+        for (const child of node.evolves_to) {
+          const found = findNode(child);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    const matchedNode = findNode(chainData.chain);
+    if (!matchedNode || !matchedNode.evolves_to || matchedNode.evolves_to.length === 0) {
+      // No further evolutions
+      localStorage.setItem(cacheKey, JSON.stringify([]));
+      return [];
+    }
+
+    // 4. Map direct next evolutions
+    const results: EvolutionOption[] = matchedNode.evolves_to.map((evo: any) => {
+      const evoId = extractIdFromUrl(evo.species.url);
+      const rawName = evo.species.name;
+      let displayName = capitalize(rawName);
+      
+      if (rawName === 'nidoran-m') displayName = 'Nidoran ♂';
+      else if (rawName === 'nidoran-f') displayName = 'Nidoran ♀';
+      else if (rawName === 'mr-mime') displayName = 'Mr. Mime';
+      else if (rawName === 'farfetchd') displayName = "Farfetch'd";
+      else if (rawName === 'sirfetchd') displayName = "Sirfetch'd";
+
+      const details = evo.evolution_details && evo.evolution_details[0];
+      const triggerDescription = formatEvolutionDetails(details);
+
+      return {
+        id: evoId,
+        name: rawName,
+        displayName,
+        triggerDescription,
+        spriteShiny: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${evoId}.png`
+      };
+    });
+
+    localStorage.setItem(cacheKey, JSON.stringify(results));
+    return results;
+  } catch (error) {
+    console.error(`Failed to fetch evolutions for Pokemon ${pokemonId}:`, error);
+    return [];
+  }
+}
+
 /**
  * Fetches full details for a single Pokemon
  */
